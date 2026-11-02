@@ -40,13 +40,22 @@ const (
 	logINFO = "INFO"
 )
 
+const (
+	msgActionNotPinned = "action isn't pinned"
+	msgActionUpdated   = "action is updated"
+)
+
 // Output writes formatted log messages with color coding and line information.
 // It displays the log level, message, file location, and optionally shows
 // before/after line changes with color-coded diff format.
 //
+// The level prefix is always rendered, even when message is empty; callers
+// that emit a diff without a message still surface whether the output is
+// informational or an error.
+//
 // Parameters:
 //   - level: log level ("error" for red, others for default)
-//   - message: log message to display
+//   - message: log message to display (empty to show the level only)
 //   - line: line information including file path and line number
 //   - newLine: new line content for diff display (empty for no diff)
 func (l *Logger) Output(level, message string, line *Line, newLine string) {
@@ -54,29 +63,20 @@ func (l *Logger) Output(level, message string, line *Line, newLine string) {
 	if level == levelError {
 		s = l.red("ERROR")
 	}
+	header := s
+	if message != "" {
+		header += " " + message
+	}
 	if newLine == "" {
-		if message == "" {
-			fmt.Fprintf(l.stderr, `%s:%d
-%s
-`, line.File, line.Number, line.Line)
-			return
-		}
-		fmt.Fprintf(l.stderr, `%s %s
+		fmt.Fprintf(l.stderr, `%s
 %s:%d
 %s
-`, s, message, line.File, line.Number, line.Line)
+`, header, line.File, line.Number, line.Line)
 		return
 	}
-	if message == "" {
-		fmt.Fprintf(l.stderr, `%s:%d
-%s
-%s
-`, line.File, line.Number, l.red("- "+line.Line), l.green("+ "+newLine))
-		return
-	}
-	fmt.Fprintf(l.stderr, `%s %s
+	fmt.Fprintf(l.stderr, `%s
 %s:%d
 %s
 %s
-`, s, message, line.File, line.Number, l.red("- "+line.Line), l.green("+ "+newLine))
+`, header, line.File, line.Number, l.red("- "+line.Line), l.green("+ "+newLine))
 }

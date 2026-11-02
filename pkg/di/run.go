@@ -173,6 +173,8 @@ func buildParam(flags *Flags) (*run.ParamRun, error) {
 		Update:            flags.Update,
 		NoAPI:             flags.NoAPI,
 		Fix:               resolveFix(flags),
+		Check:             flags.Check,
+		Diff:              flags.Diff,
 		IsGitHubActions:   flags.IsGitHubActions,
 		Stderr:            os.Stderr,
 		Stdout:            os.Stdout,

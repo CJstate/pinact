@@ -111,6 +111,47 @@ func TestLogger_Output(t *testing.T) { //nolint:funlen
 				"+ ",
 			},
 		},
+		{
+			name:    "empty message with diff still shows the level",
+			level:   "error",
+			message: "",
+			line: &Line{
+				File:   "ci.yml",
+				Number: 5,
+				Line:   "  uses: owner/repo@v1",
+			},
+			newLine: "  uses: owner/repo@def456 # v1.0.0",
+			wantContains: []string{
+				"ERROR",
+				"ci.yml:5",
+				"- ",
+				"+ ",
+				"  uses: owner/repo@v1",
+				"  uses: owner/repo@def456 # v1.0.0",
+			},
+			wantNotContain: []string{
+				"INFO",
+			},
+		},
+		{
+			name:    "empty message without diff still shows the level",
+			level:   "info",
+			message: "",
+			line: &Line{
+				File:   "test.yml",
+				Number: 10,
+				Line:   "    uses: actions/checkout@v3",
+			},
+			newLine: "",
+			wantContains: []string{
+				"INFO",
+				"test.yml:10",
+				"    uses: actions/checkout@v3",
+			},
+			wantNotContain: []string{
+				"ERROR",
+			},
+		},
 	}
 
 	for _, tt := range tests {

@@ -69,6 +69,12 @@ func Test_buildParam_checkMode(t *testing.T) {
 	if got.Fix {
 		t.Error("Fix: wanted false, got true")
 	}
+	if !got.Check {
+		t.Error("Check: wanted true, got false")
+	}
+	if got.Diff {
+		t.Error("Diff: wanted false, got true")
+	}
 }
 
 func Test_buildParam_diffMode(t *testing.T) {
@@ -80,6 +86,12 @@ func Test_buildParam_diffMode(t *testing.T) {
 	}
 	if got.Fix {
 		t.Error("Fix: wanted false, got true")
+	}
+	if got.Check {
+		t.Error("Check: wanted false, got true")
+	}
+	if !got.Diff {
+		t.Error("Diff: wanted true, got false")
 	}
 }
 

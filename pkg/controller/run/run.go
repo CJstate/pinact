@@ -26,6 +26,8 @@ type ParamRun struct {
 	Update            bool
 	IsGitHubActions   bool
 	Fix               bool
+	Check             bool
+	Diff              bool
 	NoAPI             bool
 	Stderr            io.Writer
 	Stdout            io.Writer
@@ -284,7 +286,7 @@ func (c *Controller) handleLineError(ctx context.Context, lineLogger *slog.Logge
 			OldLine: line.Line,
 			Message: err.Error(),
 		})
-		c.logger.Output(levelError, "", line, "")
+		c.logger.Output(levelError, err.Error(), line, "")
 		if c.param.IsGitHubActions {
 			fmt.Fprintf(c.param.Stderr, "::error file=%s,line=%d,title=pinact min-age violation::%s\n", line.File, line.Number, err)
 		}
@@ -387,22 +389,37 @@ func (c *Controller) outputGitHubActionsAnnotation(line *Line, newLine string) {
 		return
 	}
 	level := "notice"
-	if !c.param.Fix {
+	if c.isErrorReport() {
 		level = levelError
 	}
 	fmt.Fprintf(c.param.Stderr, "::%s file=%s,line=%d,title=pinact error::%s\n", level, line.File, line.Number, newLine)
 }
 
+// isErrorReport reports whether a non-fixing run validates the workflow and
+// therefore reports a failure. A diff-only run merely displays the proposed
+// change, so it is not an error report even though both --check and --diff
+// imply Fix=false.
+func (c *Controller) isErrorReport() bool {
+	return !c.param.Fix && (c.param.Check || !c.param.Diff)
+}
+
 // outputDiff outputs the diff information for the changed line.
 // In v4, the detail output is always emitted regardless of --fix / --check / --diff
-// flag combinations. Error level is used when the run will exit non-zero
-// (Fix disabled), info level otherwise.
+// flag combinations. A run that validates without writing reports a failed
+// check, so its output uses the error level; a diff-only run that merely shows
+// the proposed change and a regular fix run use the info level.
+// The message is passed explicitly because Logger.Output no longer needs a
+// special empty-message branch to suppress the level prefix.
 func (c *Controller) outputDiff(line *Line, newLine string) {
 	level := levelInfo
-	if !c.param.Fix {
+	message := msgActionNotPinned
+	if c.isErrorReport() {
 		level = levelError
 	}
-	c.logger.Output(level, "", line, newLine)
+	if c.param.Update {
+		message = msgActionUpdated
+	}
+	c.logger.Output(level, message, line, newLine)
 }
 
 // readWorkflow reads a workflow file and returns its lines together with its

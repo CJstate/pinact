@@ -96,18 +96,52 @@ func TestController_processLines(t *testing.T) { //nolint:funlen
 	}
 }
 
-// TestController_outputDiff_alwaysOn verifies that the line diff is emitted to
-// stderr regardless of the Fix value (v4 spec: detail output is always on).
-// --check / --diff are aliases for --fix=false and are translated by buildParam,
-// so the controller only needs to react to Fix.
-func TestController_outputDiff_alwaysOn(t *testing.T) {
+// TestController_outputDiff verifies that the line diff is emitted for every
+// mode and that the level reflects the mode: a check-style run reports ERROR,
+// while --diff and a regular fix run report INFO.
+func TestController_outputDiff(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name  string
-		param *ParamRun
+		name           string
+		param          *ParamRun
+		wantContains   []string
+		wantNotContain []string
 	}{
-		{name: "fix=true (default)", param: &ParamRun{Fix: true}},
-		{name: "fix=false", param: &ParamRun{Fix: false}},
+		{
+			name:           "fix mode uses INFO",
+			param:          &ParamRun{Fix: true},
+			wantContains:   []string{"INFO", "action isn't pinned"},
+			wantNotContain: []string{"ERROR"},
+		},
+		{
+			name:           "diff mode uses INFO",
+			param:          &ParamRun{Fix: false, Diff: true},
+			wantContains:   []string{"INFO", "action isn't pinned"},
+			wantNotContain: []string{"ERROR"},
+		},
+		{
+			name:           "check mode uses ERROR",
+			param:          &ParamRun{Fix: false, Check: true},
+			wantContains:   []string{"ERROR", "action isn't pinned"},
+			wantNotContain: []string{"INFO"},
+		},
+		{
+			name:           "check and diff uses ERROR",
+			param:          &ParamRun{Fix: false, Check: true, Diff: true},
+			wantContains:   []string{"ERROR", "action isn't pinned"},
+			wantNotContain: []string{"INFO"},
+		},
+		{
+			name:           "explicit fix=false uses ERROR",
+			param:          &ParamRun{Fix: false},
+			wantContains:   []string{"ERROR", "action isn't pinned"},
+			wantNotContain: []string{"INFO"},
+		},
+		{
+			name:         "update mode names the update",
+			param:        &ParamRun{Fix: true, Update: true},
+			wantContains: []string{"INFO", "action is updated"},
+		},
 	}
 
 	const oldLine = "    - uses: actions/checkout@v3.5.2"
@@ -126,6 +160,16 @@ func TestController_outputDiff_alwaysOn(t *testing.T) {
 			out := buf.String()
 			if !strings.Contains(out, oldLine) || !strings.Contains(out, newLine) {
 				t.Errorf("outputDiff() output missing old or new line.\nGot: %s", out)
+			}
+			for _, want := range tt.wantContains {
+				if !strings.Contains(out, want) {
+					t.Errorf("outputDiff() missing expected content %q in:\n%s", want, out)
+				}
+			}
+			for _, notWant := range tt.wantNotContain {
+				if strings.Contains(out, notWant) {
+					t.Errorf("outputDiff() contains unexpected content %q in:\n%s", notWant, out)
+				}
 			}
 		})
 	}
